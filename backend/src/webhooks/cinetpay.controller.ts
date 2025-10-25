@@ -7,7 +7,7 @@ import { OrdersService } from '../orders/orders.service'; // service métier
 export class CinetpayWebhooksController {
   private logger = new Logger('CinetpayWebhooks');
 
-  constructor(private ordersService: OrdersService) {}
+  constructor(private ordersService: OrdersService) { }
 
   @Post('cinetpay')
   async handle(@Req() req: Request, @Res() res: Response) {
@@ -38,6 +38,18 @@ export class CinetpayWebhooksController {
 
     // Vérification timing-safe
     const valid = receivedToken && crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(receivedToken));
+    const received = Buffer.from(hmac || "");
+    const expected = Buffer.from(process.env.CINETPAY_TOKEN || "");
+
+    if (received.length !== expected.length) {
+      this.logger.warn("❌ Mauvaise longueur de token reçue");
+      return res.status(403).json({ message: "Forbidden: Invalid token" });
+    }
+
+    if (!crypto.timingSafeEqual(received, expected)) {
+      this.logger.warn("❌ Token invalide reçu sur le webhook");
+      return res.status(403).json({ message: "Forbidden: Invalid token" });
+    }
 
     if (!valid) {
       this.logger.warn('Webhook CinetPay: token invalide', { receivedToken, hmac, dataString });
