@@ -6,29 +6,44 @@ import { any } from 'zod';
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
 
-  async sendMessage(to: string, message: string) {
-    const url = `https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_ID}/messages`;
+  async sendTemplateMessage(opts: {
+    to: string; // numéro du client
+    templateName: string; // ex: payment_confirmation
+    language: string; // ex: fr
+    variables: string[]; // ex: [nom, service, plateforme]
+  }) {
+    const url = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`;
 
     const payload = {
       messaging_product: 'whatsapp',
-      to,
-      type: 'text',
-      text: { body: message },
+      to: opts.to,
+      type: 'template',
+      template: {
+        name: opts.templateName,
+        language: { code: opts.language },
+        components: [
+          {
+            type: 'body',
+            parameters: opts.variables.map((text) => ({ type: 'text', text })),
+          },
+        ],
+      },
     };
-
-    try {
-      const res = await axios.post(url, payload, {
+try {
+      const response = await axios.post(url, payload, {
         headers: {
           Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
           'Content-Type': 'application/json',
         },
       });
 
-      this.logger.log(`✅ Message WhatsApp envoyé à ${to}`);
-      return res.data;
-    } catch (err: any) {
-      this.logger.error(`❌ Erreur envoi WhatsApp : ${err.message}`);
-      throw err;
+      this.logger.log(`✅ Message WhatsApp envoyé à ${opts.to}`);
+      return response.data;
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Erreur lors de l’envoi WhatsApp : ${error.response?.data?.error?.message || error.message}`,
+      );
+      throw error;
     }
   }
 }
