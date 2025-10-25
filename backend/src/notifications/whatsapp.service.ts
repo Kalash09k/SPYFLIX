@@ -7,7 +7,7 @@ export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
 
   async sendMessage(to: string, message: string) {
-    const url = `https://graph.facebook.com/v24.0/${process.env.WHATSAPP_PHONE_ID}/messages`;
+    const url = `https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_ID}/messages`;
 
     const payload = {
       messaging_product: 'whatsapp',
