@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String              @id @default(uuid())
+  name          String
+  email         String              @unique
+  phone         String
+  password      String
+  role          Role
+  kycStatus     KYCStatus           @default(PENDING)
+  wallet        Float               @default(0)
+  createdAt     DateTime            @default(now())
+  subscriptions SubscriptionGroup[] @relation("ownerGroups")
+  orders        Order[]             @relation("buyerOrders")
+  ownerOrders   Order[]             @relation("ownerOrders")
+  transactions  Transaction[]
+}
+
+enum Role {
+  OWNER
+  BUYER
+}
+
+enum KYCStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model SubscriptionGroup {
+  id             String   @id @default(uuid())
+  ownerId        String
+  owner          User     @relation(fields: [ownerId], references: [id], name: "ownerGroups")
+  serviceName    String
+  plan           String
+  pricePerSlot   Float
+  totalSlots     Int
+  availableSlots Int
+  createdAt      DateTime @default(now())
+  orders         Order[]
+}
+
+model Order {
+  id                  String            @id @default(uuid())
+  subscriptionGroupId String
+  subscriptionGroup   SubscriptionGroup @relation(fields: [subscriptionGroupId], references: [id])
+  buyerId             String
+  buyer               User              @relation(fields: [buyerId], references: [id], name: "buyerOrders")
+  ownerId             String
+  owner               User              @relation(fields: [ownerId], references: [id], name: "ownerOrders")
+  amount              Float
+  commission          Float             @default(0)
+  status              OrderStatus       @default(PENDING)
+  buyerWhatsApp       String?
+  buyerWhatsAppLink   String?
+  paymentProviderId   String?
+  paymentId           String?
+  expiresAt           DateTime
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  Transaction         Transaction[]
+
+  @@index([status, expiresAt])
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CONFIRMED
+  REFUNDED
+  CANCELLED
+}
+
+model Transaction {
+  id        String          @id @default(uuid())
+  orderId   String?
+  order     Order?          @relation(fields: [orderId], references: [id])
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+  type      TransactionType
+  amount    Float
+  metadata  Json?
+  createdAt DateTime        @default(now())
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+  REFUND
+  COMMISSION
+}
