@@ -9,10 +9,11 @@ import { OrdersMonitorService } from './orders-monitor.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Order } from './entities/order.entities';
 import { OrdersController } from './orders.controller';
+import { User } from './entities/user.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order]),
+    TypeOrmModule.forFeature([Order, User]),
     BullModule.registerQueue({
       name: 'orders',
     }),

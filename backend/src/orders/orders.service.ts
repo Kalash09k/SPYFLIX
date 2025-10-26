@@ -7,6 +7,7 @@ import { Order } from './entities/order.entities';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { User } from './entities/user.entity';
 
 interface Payment {
     paymentUrl: string;
@@ -20,7 +21,27 @@ export class OrdersService {
 
   constructor(
     @InjectRepository(Order)
-     private readonly orderRepository: Repository<Order>, private prisma: PrismaService, @InjectQueue('orders') private ordersQueue: Queue ) {}
+     private readonly orderRepository: Repository<Order>, private prisma: PrismaService, @InjectQueue('orders') private ordersQueue: Queue,
+    @InjectRepository(User) private readonly userRepository: Repository<User> ) {}
+
+    async confirmOrderLogic(orderId: string) {
+    const order = await this.orderRepository.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Commande introuvable');
+    if (order.status !== 'pending') throw new BadRequestException('La commande ne peut plus être confirmée');
+
+    order.status = 'confirmed';
+    await this.orderRepository.save(order);
+
+    const sellerAmount = order.amount - order.commission;
+
+    const seller = await this.userRepository.findOne({ where: { phone: order.sellerPhone } });
+    if (!seller) throw new NotFoundException('Vendeur associé à la commande introuvable');
+    
+    seller.wallet += sellerAmount;
+    await this.userRepository.save(seller);
+
+    return { message: 'Commande confirmée, paiement au vendeur effectué', sellerAmount };
+  }
 
   // Create order: reserve place atomically, create order, init payment, schedule expiry job
   async create(dto: CreateOrderDto): Promise<Order> {
@@ -190,6 +211,7 @@ export class OrdersService {
     await this.ordersQueue.add('process-order', { orderId, userId });
     return { message: `Order ${orderId} queued for processing` };
   }
+  
 
   // Refund flow (manual or worker)
   async refundOrder(orderId: string) {
@@ -244,4 +266,5 @@ export class OrdersService {
 
     return { ok: true };
   }
+  
 }

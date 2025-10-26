@@ -25,4 +25,15 @@ export class Order {
 
   @Column({ nullable: true })
   paymentReference: string;
+
+  @Column({ 
+    type: 'decimal',
+    precision: 10,  
+    scale: 2,       
+    transformer: {  
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    }
+  })
+  amount: number;
 }

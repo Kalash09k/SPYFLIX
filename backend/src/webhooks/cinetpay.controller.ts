@@ -103,7 +103,7 @@ export class CinetpayWebhooksController {
 
       // Vendeur
       await this.whatsappService.sendTemplateMessage({
-        to: sellerPhone,
+        to: order.sellerPhone,
         templateName: 'vente_confirmee',
         language: 'fr',
         variables: [serviceName, buyerName, orderId],

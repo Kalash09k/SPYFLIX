@@ -7,5 +7,16 @@ export class Order {
 
     @Column({ type: 'numeric', default: 0 })
     wallet: number;
+}
 
+@Entity('users')
+export class User {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  phone: string;
+
+  @Column({ type: 'numeric', default: 0 })
+  wallet: number;
 }
