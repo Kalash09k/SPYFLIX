@@ -1,19 +1,28 @@
-import { Controller, Post, Req, Res, Logger, Headers } from '@nestjs/common';
+import { Controller, Post, Req, Res, Body, Logger, Headers } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { WhatsAppService } from '../notifications/whatsapp.service';
 import axios from 'axios';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Order } from '../orders/entities/order.entities';
 
 @Controller('webhooks')
 export class CinetpayWebhookController {
-    private readonly logger = new Logger(CinetpayWebhookController.name);
 
-    constructor(private readonly whatsappService: WhatsAppService) { }
+    constructor(
+        private readonly whatsappService: WhatsAppService,
+        @InjectRepository(Order)
+        private readonly orderRepository: Repository<Order>,
+    ) { }
+
+    private readonly logger = new Logger(CinetpayWebhookController.name);
 
     @Post('cinetpay')
     async handleWebhook(
         @Req() req: Request,
         @Res() res: Response,
         @Headers('x-token') xToken: string,
+        @Body() body: any,
     ) {
         try {
             this.logger.log('📩 Webhook reçu !');

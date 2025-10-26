@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
-import { any } from 'zod';
 
 @Injectable()
 export class WhatsAppService {
@@ -12,7 +11,7 @@ export class WhatsAppService {
     language: string; // ex: fr
     variables: string[]; // ex: [nom, service, plateforme]
   }) {
-    const url = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`;
+    const url = `https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
     const payload = {
       messaging_product: 'whatsapp',

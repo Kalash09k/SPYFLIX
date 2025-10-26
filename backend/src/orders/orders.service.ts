@@ -3,6 +3,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import axios from 'axios';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
+import { Order } from './entities/order.entities';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { CreateOrderDto } from './dto/create-order.dto';
 
 interface Payment {
     paymentUrl: string;
@@ -14,12 +18,26 @@ interface Payment {
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
 
-  constructor(private prisma: PrismaService, @InjectQueue('orders') private ordersQueue: Queue) {}
+  constructor(
+    @InjectRepository(Order)
+     private readonly orderRepository: Repository<Order>, private prisma: PrismaService, @InjectQueue('orders') private ordersQueue: Queue ) {}
 
   // Create order: reserve place atomically, create order, init payment, schedule expiry job
-  async createOrder(dto: { subscriptionGroupId: string; buyerId: string; buyerWhatsApp: string }) {
+  async create(dto: CreateOrderDto): Promise<Order> {
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const newOrder = new Order();
+    expiresAt
+    return this.orderRepository.save(newOrder);
+  }
+  async createOrder(dto: { subscriptionGroupId: string; buyerId: string; buyerWhatsApp: string; amount: number, subscriptionId: string }) {
+    this.logger.log(`Received DTO: ${JSON.stringify(dto)}`);
+    this.logger.log(`Subscription Group ID: ${dto.subscriptionGroupId}`);
     const group = await this.prisma.subscriptionGroup.findUnique({ where: { id: dto.subscriptionGroupId }});
     if (!group) throw new NotFoundException('Groupe non trouvé');
+
+    const commissionRate = 0.10; // 10%
+    const commission = dto.amount * commissionRate;
+
 
     // Atomic decrement availableSlots
     const updated = await this.prisma.subscriptionGroup.updateMany({
@@ -44,6 +62,7 @@ export class OrdersService {
         buyerWhatsAppLink: `https://wa.me/${dto.buyerWhatsApp.replace('+', '')}`,
         status: 'PENDING',
         expiresAt,
+        commission,
       },
     });
 
@@ -149,7 +168,7 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId }});
     if (!order) throw new NotFoundException('Order not found');
     if (order.buyerId !== buyerId) throw new BadRequestException('Non autorisé');
-    if (order.status !== 'PAID') throw new BadRequestException('Paiement non reçu ou déjà traité');
+    if (order.status !== 'PENDING') throw new BadRequestException('Paiement non reçu ou déjà traité');
 
     const COMMISSION_RATE = parseFloat(process.env.COMMISSION_RATE || '0.10');
     const commission = parseFloat((order.amount * COMMISSION_RATE).toFixed(2));

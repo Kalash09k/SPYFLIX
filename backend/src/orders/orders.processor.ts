@@ -1,6 +1,5 @@
 // orders.processor.ts (worker)
 import { Processor, Process, InjectQueue } from '@nestjs/bull';
-import { BullModule } from '@nestjs/bull';
 import { Job, Queue } from 'bull';
 import { OrdersService } from './orders.service';
 import { Injectable } from '@nestjs/common';

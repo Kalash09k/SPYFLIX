@@ -1,94 +1,121 @@
-import { Controller, Post, Req, Res, Logger } from '@nestjs/common';
-import { Request, Response } from 'express';
-import * as crypto from 'crypto';
-import { OrdersService } from '../orders/orders.service'; // service métier
+import { Controller, Post, Body, Headers, Logger, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import axios from 'axios';
+import crypto from 'crypto';
+import { WhatsAppService } from '../notifications/whatsapp.service';
+import { Order } from '../orders/entities/order.entities';
 
 @Controller('webhooks')
 export class CinetpayWebhooksController {
-  private logger = new Logger('CinetpayWebhooks');
+  private readonly logger = new Logger(CinetpayWebhooksController.name);
 
-  constructor(private ordersService: OrdersService) { }
+  constructor(
+    private readonly whatsappService: WhatsAppService,
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
+  ) {}
 
   @Post('cinetpay')
-  async handle(@Req() req: Request, @Res() res: Response) {
-    const payload = req.body; // CinetPay envoie form values (x-www-form-urlencoded) ou JSON selon config
-    const receivedToken = (req.headers['x-token'] as string) || (req.headers['X-Token'] as string);
-
-    // Build the data string exactly in the order required by CinetPay
-    const dataString =
-      (payload.cpm_site_id || '') +
-      (payload.cpm_trans_id || '') +
-      (payload.cpm_trans_date || '') +
-      (payload.cpm_amount || '') +
-      (payload.cpm_currency || '') +
-      (payload.signature || '') +
-      (payload.payment_method || '') +
-      (payload.cel_phone_num || '') +
-      (payload.cpm_phone_prefixe || '') +
-      (payload.cpm_language || '') +
-      (payload.cpm_version || '') +
-      (payload.cpm_payment_config || '') +
-      (payload.cpm_page_action || '') +
-      (payload.cpm_custom || '') +
-      (payload.cpm_designation || '') +
-      (payload.cpm_error_message || '');
-
-    const secret = process.env.CINETPAY_SECRET_KEY || '';
-    const hmac = crypto.createHmac('sha256', secret).update(dataString).digest('hex');
-
-    // Vérification timing-safe
-    const valid = receivedToken && crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(receivedToken));
-    const received = Buffer.from(hmac || "");
-    const expected = Buffer.from(process.env.CINETPAY_TOKEN || "");
-
-    if (received.length !== expected.length) {
-      this.logger.warn("❌ Mauvaise longueur de token reçue");
-      return res.status(403).json({ message: "Forbidden: Invalid token" });
-    }
-
-    if (!crypto.timingSafeEqual(received, expected)) {
-      this.logger.warn("❌ Token invalide reçu sur le webhook");
-      return res.status(403).json({ message: "Forbidden: Invalid token" });
-    }
-
-    if (!valid) {
-      this.logger.warn('Webhook CinetPay: token invalide', { receivedToken, hmac, dataString });
-      return res.status(400).json({ ok: false, message: 'Invalid token' });
-    }
-
-    // Ok token valide -> traiter le payload
+  async handle(
+    @Body() body: any,
+    @Headers('x-token') xToken: string,
+    @Headers('x-signature') xSignature: string,
+  ) {
     try {
-      // Extrait orderId depuis cpm_custom (si tu l'as envoyé) — doc recommande utiliser cpm_custom pour metadata.
-      const cpmCustom = payload.cpm_custom;
-      // cpm_custom peut être stringified JSON si tu as envoyé JSON.stringify({orderId: ...})
-      let metadata: any = null;
-      try { metadata = JSON.parse(cpmCustom); } catch (e) { metadata = cpmCustom; }
+      // 1️⃣ Vérifier le token
+      const expectedToken = process.env.CINETPAY_TOKEN;
+      if (!expectedToken) throw new Error('CINETPAY_TOKEN manquant dans le .env');
 
-      const orderId = metadata?.orderId || payload.orderId || payload['orderId'] || null;
-      const transactionId = payload.cpm_trans_id || payload.transaction_id || payload.transactionId || null;
-      const statusText = payload.cpm_error_message || payload.status || payload.transaction_status || 'UNKNOWN';
-
-      // Si status indique succès (dépend de la valeur exacte renvoyée par CinetPay)
-      // Sur la doc : on vérifie les champs et code. Ici on considère "Success" / "ACCEPTED" / erreur vide comme payé.
-      const paid = (payload.cpm_error_message === null || payload.cpm_error_message === '' || payload.cpm_error_message === 'PAID' || payload.cpm_error_message === 'SUCCESS' || payload.cpm_payment_status === 'ACCEPTED' || payload.status === 'SUCCESS');
-
-      if (orderId && paid) {
-        // appelle la logique métier pour marquer commande payée (idempotence à l'intérieur)
-        await this.ordersService.handleCinetPayWebhook({
-          orderId: orderId,
-          transactionId,
-          rawPayload: payload,
-        });
-      } else {
-        // log non-success
-        this.logger.log('Webhook non-paid or unknown', { orderId, statusText, payload });
+      if (xToken !== expectedToken) {
+        this.logger.warn('🚫 Webhook refusé : Token invalide');
+        return { message: 'Forbidden: Invalid token' };
       }
 
-      // Répond 200 à CinetPay
-      return res.status(200).send('OK');
-    } catch (err) {
-      this.logger.error('Erreur traitement webhook CinetPay', err);
-      return res.status(500).json({ ok: false });
+      this.logger.log(`📩 Webhook reçu de CinetPay : ${JSON.stringify(body, null, 2)}`);
+
+      // 2️⃣ Vérifier la signature HMAC (authenticité)
+      const secretKey = process.env.CINETPAY_SECRET_KEY;
+      if (!secretKey) throw new Error('CINETPAY_SECRET_KEY manquant dans le .env');
+
+      const computedSignature = crypto
+        .createHmac('sha256', secretKey)
+        .update(JSON.stringify(body))
+        .digest('hex');
+
+      if (xSignature !== computedSignature) {
+        this.logger.error('🚨 Signature HMAC invalide : webhook potentiellement falsifié');
+        return { message: 'Forbidden: Invalid signature' };
+      }
+
+      // 3️⃣ Vérifier le statut réel du paiement auprès de CinetPay
+      const transactionId = body.transaction_id || body.data?.transaction_id;
+      if (!transactionId) throw new BadRequestException('transaction_id manquant');
+
+      this.logger.log(`🔍 Vérification du paiement ${transactionId} via API CinetPay...`);
+
+      const response = await axios.post('https://api-checkout.cinetpay.com/v2/payment/check', {
+        transaction_id: transactionId,
+        apikey: process.env.CINETPAY_API_KEY,
+        site_id: process.env.CINETPAY_SITE_ID,
+      });
+
+      const paymentData = response.data?.data;
+      this.logger.log(`🧾 Données de paiement CinetPay : ${JSON.stringify(paymentData, null, 2)}`);
+
+      if (!paymentData || paymentData.status !== 'ACCEPTED') {
+        this.logger.warn('⚠️ Paiement non confirmé, aucun message envoyé.');
+        return { message: 'ignored' };
+      }
+
+      // 4️⃣ Extraire les métadonnées
+      const metadata = typeof paymentData.metadata === 'string'
+        ? JSON.parse(paymentData.metadata)
+        : paymentData.metadata;
+
+      const orderId = metadata?.orderId;
+      if (!orderId) throw new BadRequestException('Order ID manquant');
+
+      // 5️⃣ Trouver et mettre à jour la commande
+      const order = await this.orderRepository.findOne({ where: { id: orderId } });
+      if (!order) throw new BadRequestException(`Commande ${orderId} introuvable`);
+
+      order.status = 'pending';
+      order.paymentReference = transactionId;
+      order.expiresAt = new Date(Date.now() + 10 * 60 * 1000); // expire après 10 min
+      await this.orderRepository.save(order);
+
+      this.logger.log(`✅ Commande ${orderId} marquée comme PAYÉE.`);
+
+      // 6️⃣ Notifications WhatsApp
+      const buyerPhone = metadata?.buyerPhone || '237690000000';
+      const buyerName = metadata?.buyerName || 'Client';
+      const sellerPhone = metadata?.sellerPhone || '237691111111';
+      const serviceName = metadata?.serviceName || 'Abonnement Premium';
+
+      // Acheteur
+      await this.whatsappService.sendTemplateMessage({
+        to: buyerPhone,
+        templateName: 'paiement_confirme',
+        language: 'fr',
+        variables: [buyerName, serviceName, 'PAYÉ', orderId],
+      });
+
+      // Vendeur
+      await this.whatsappService.sendTemplateMessage({
+        to: sellerPhone,
+        templateName: 'vente_confirmee',
+        language: 'fr',
+        variables: [serviceName, buyerName, orderId],
+      });
+
+      this.logger.log(`📤 Notifications envoyées pour la commande ${orderId}`);
+
+      // 7️⃣ Réponse finale
+      return { message: 'success', orderId };
+    } catch (err: any) {
+      this.logger.error(`❌ Erreur webhook CinetPay : ${err.message}`, err.stack);
+      throw new BadRequestException('Erreur lors du traitement du webhook');
     }
   }
 }

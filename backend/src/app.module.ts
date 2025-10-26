@@ -7,10 +7,23 @@ import { AuthModule } from './auth/auth.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { BullModule } from '@nestjs/bull';
 import { WhatsAppService } from './notifications/whatsapp.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Order } from './orders/entities/order.entities';
 
 
 @Module({
-  imports: [AuthModule,
+  imports: [
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: 'localhost',
+      port: 5432,
+      username: 'postgres',
+      password: 'postgres',
+      database: 'subscription_db',
+      entities: [Order],
+      synchronize: true, // seulement en dev
+    }),
+    AuthModule,
     PrismaModule,
     PaymentsModule,
     WebhooksModule,
