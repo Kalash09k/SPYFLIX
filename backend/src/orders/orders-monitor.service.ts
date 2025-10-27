@@ -52,6 +52,8 @@ export class OrdersMonitorService {
         templateName: 'refund_notification',
         language: 'fr',
         variables: [order.serviceName],
+        phone: order.buyerPhone,
+        message: '',
       });
 
       // 4️⃣ Proposer un autre vendeur (logique simple)

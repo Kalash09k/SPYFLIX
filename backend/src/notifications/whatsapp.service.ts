@@ -7,9 +7,11 @@ export class WhatsAppService {
 
   async sendTemplateMessage(opts: {
     to: string; // numéro du client
-    templateName: string; // ex: payment_confirmation
-    language: string; // ex: fr
-    variables: string[]; // ex: [nom, service, plateforme]
+    templateName?: string; // ex: payment_confirmation
+    language?: string; // ex: fr
+    variables?: (string | number | boolean)[]; // ex: [nom, service, plateforme]
+    phone?: string;
+    message?: string;
   }) {
     const url = `https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 

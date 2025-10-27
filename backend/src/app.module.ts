@@ -9,6 +9,11 @@ import { BullModule } from '@nestjs/bull';
 import { WhatsAppService } from './notifications/whatsapp.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Order } from './orders/entities/order.entities';
+import { UsersService } from './users/users.service';
+import { User } from './orders/entities/user.entity';
+import { UsersModule } from './users/users.module';
+import { PayoutModule } from './payments/payout.module';
+import { TestController } from './test/test.controller';
 
 
 @Module({
@@ -20,7 +25,7 @@ import { Order } from './orders/entities/order.entities';
       username: 'postgres',
       password: 'postgres',
       database: 'subscription_db',
-      entities: [Order],
+      entities: [Order, User],
       synchronize: true, // seulement en dev
     }),
     AuthModule,
@@ -29,6 +34,9 @@ import { Order } from './orders/entities/order.entities';
     WebhooksModule,
     SubscriptionsModule,
     OrdersModule,
+    UsersModule,
+    OrdersModule,
+    PayoutModule,
     BullModule.forRootAsync({
       useFactory: () => ({
         redis: {
@@ -41,7 +49,8 @@ import { Order } from './orders/entities/order.entities';
     BullModule.registerQueue({
       name: 'orders',
     }),],
-    providers: [WhatsAppService],
+    controllers: [TestController],
+    providers: [WhatsAppService, UsersService],
     exports: [WhatsAppService],
 })
 export class AppModule { }
