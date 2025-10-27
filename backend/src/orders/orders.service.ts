@@ -43,6 +43,20 @@ export class OrdersService {
     return { message: 'Commande confirmée, paiement au vendeur effectué', sellerAmount };
   }
 
+  async getOrdersByBuyer(phone: string) {
+  return this.orderRepository.find({
+    where: { buyerPhone: phone },
+    order: { expiresAt: 'DESC' },
+  });
+}
+async getOrdersBySeller(phone: string) {
+  return this.orderRepository.find({
+    where: { sellerPhone: phone },
+    order: { expiresAt: 'DESC' },
+  });
+}
+
+
   // Create order: reserve place atomically, create order, init payment, schedule expiry job
   async create(dto: CreateOrderDto): Promise<Order> {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);

@@ -34,4 +34,14 @@ export class OrdersController {
     return this.svc.confirmOrderLogic(body.orderId);
   }
 
+  @Get('buyer/:phone')
+  async getOrdersByBuyer(@Param('phone') phone: string) {
+    return this.svc.getOrdersByBuyer(phone);
+  }
+
+  @Get('seller/:phone')
+  async getOrdersBySeller(@Param('phone') phone: string) {
+    return this.svc.getOrdersBySeller(phone);
+  }
+
 }
