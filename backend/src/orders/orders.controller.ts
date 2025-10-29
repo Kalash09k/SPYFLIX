@@ -1,16 +1,13 @@
 import { Controller, Post, Body, Param, Get } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { BadRequestException } from '@nestjs/common';
-import { NotFoundException } from '@nestjs/common';
-import { Order } from './entities/order.entity';
-import { Repository } from 'typeorm';
+
 @Controller('orders')
 export class OrdersController {
   constructor(private svc: OrdersService) { }
 
-  @Post()
-  async create(@Body() dto: CreateOrderDto) {
+  @Post('create-order')
+  async createOrder(@Body() dto: CreateOrderDto) {
     return this.svc.createOrder(dto);
   }
 

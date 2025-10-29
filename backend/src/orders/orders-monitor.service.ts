@@ -56,6 +56,7 @@ export class OrdersMonitorService {
         message: '',
       });
 
+      this.logger.log(`✅ Commande remboursée et notification envoyée : ${order.id}`);
       // 4️⃣ Proposer un autre vendeur (logique simple)
       // Ici, tu peux choisir un autre sellerPhone disponible
       // ou renvoyer une liste des offres restantes

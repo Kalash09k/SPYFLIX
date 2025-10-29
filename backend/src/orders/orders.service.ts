@@ -19,20 +19,20 @@ interface Payment {
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
 
-  // Note: Keeping TypeORM repository injections for legacy methods, but relying on Prisma for new methods.
+  // TypeORM injections kept for legacy methods
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>, 
     private prisma: PrismaService, 
     @InjectQueue('orders') private ordersQueue: Queue,
     @InjectRepository(User) 
-    private readonly userRepository: Repository<User> // Used in confirmOrderLogic (legacy)
+    private readonly userRepository: Repository<User>
   ) { }
 
   async confirmOrderLogic(orderId: string) {
     const order = await this.orderRepository.findOne({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Commande introuvable');
-    if (order.status !== 'pending') throw new BadRequestException('La commande ne peut plus être confirmée');
+    if (order.status !== 'pending') throw new BadRequestException('Commande non valide');
 
     order.status = 'confirmed';
     this.logger.log(JSON.stringify(order))
@@ -63,18 +63,8 @@ export class OrdersService {
     });
   }
 
-  // Legacy TypeORM method - not fully implemented in original code
-  async create(dto: CreateOrderDto): Promise<Order> {
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    const newOrder = new Order();
-    // Logic missing here, using newOrder directly without fields
-    newOrder.expiresAt = expiresAt;
-    // return this.orderRepository.save(newOrder); 
-    throw new Error('Please use createOrder(dto) which uses Prisma.');
-  }
-
   // Create order: reserve place atomically, create order, init payment, schedule expiry job
-  async createOrder(dto: CreateOrderDto): Promise<any> { // Using CreateOrderDto instead of inline type
+  async createOrder(dto: CreateOrderDto): Promise<any> { 
     this.logger.log(`Received DTO: ${JSON.stringify(dto)}`);
     this.logger.log(`Subscription Group ID: ${dto.subscriptionGroupId}`);
 
@@ -83,8 +73,8 @@ export class OrdersService {
     if (!group) throw new NotFoundException('Groupe non trouvé');
 
     const commissionRate = 0.10; // 10%
-    const commission = group.pricePerSlot * commissionRate; // Use group price
-    const amount = group.pricePerSlot; // Correctly derive amount from group price
+    const amount = group.pricePerSlot; 
+    const commission = amount * commissionRate; 
 
     // 2. Atomic decrement availableSlots (RESERVE THE SLOT)
     const updated = await this.prisma.subscriptionGroup.updateMany({
@@ -96,7 +86,8 @@ export class OrdersService {
       throw new BadRequestException('Plus de places disponibles');
     }
 
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    // Expiration dans 10 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); 
 
     // 3. Create the order
     const order = await this.prisma.order.create({
@@ -117,8 +108,6 @@ export class OrdersService {
       this.logger.error('buyerWhatsApp is missing from the DTO');
       throw new BadRequestException('Buyer WhatsApp number is required.');
     }
-    // The previous error was here, but the code is now wrapped in a check.
-    // const cleanedPhone = dto.buyerWhatsApp.replace('+', ''); 
 
     // 4. Init payment (CinetPay)
     const payment: Payment = await this.initCinetPayPayment({ orderId: order.id, amount, buyerPhone: dto.buyerWhatsApp });
@@ -131,6 +120,7 @@ export class OrdersService {
     });
 
     // 6. Schedule expire job via BullMQ
+    // Le 'delay' correspond aux 10 minutes d'expiration
     await this.ordersQueue.add('expire-order', { orderId: order.id }, { delay: 10 * 60 * 1000 });
 
     return { order, paymentUrl: payment.paymentUrl };
@@ -158,12 +148,6 @@ export class OrdersService {
       data: { status: 'PAID', paymentId: transactionId || rawPayload?.cpm_trans_id },
     });
 
-    // ----------------------------------------------------------------------
-    // 💡 CRITICAL FIX: REMOVED DUPLICATE SLOT DECREMENT
-    // The slot was already decremented atomically in createOrder.
-    // await this.prisma.subscriptionGroup.update({ where: { id: order.subscriptionGroupId }, data: { availableSlots: { decrement: 1 } } }); 
-    // ----------------------------------------------------------------------
-
     // Notifier le propriétaire via WhatsApp
     await this.notifyOwnerPayment(orderId);
 
@@ -175,7 +159,7 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Order not found');
     if (order.buyerId !== buyerId) throw new BadRequestException('Non autorisé');
-    if (order.status !== 'PAID') throw new BadRequestException('Paiement non reçu ou déjà traité'); // Check for PAID, not PENDING
+    if (order.status !== 'PAID') throw new BadRequestException('Paiement non reçu ou déjà traité'); 
 
     const COMMISSION_RATE = parseFloat(process.env.COMMISSION_RATE || '0.10');
     const commission = parseFloat((order.amount * COMMISSION_RATE).toFixed(2));
@@ -185,7 +169,7 @@ export class OrdersService {
       await tx.order.update({ where: { id: orderId }, data: { status: 'CONFIRMED', commission } });
       await tx.user.update({ where: { id: order.ownerId }, data: { wallet: { increment: ownerReceives } } });
       
-      // Ensure transaction entity exists and is imported if used
+      // La création des transactions est mise en commentaire car l'entité transaction n'est pas définie ici.
       // await tx.transaction.createMany({ 
       //   data: [
       //     { orderId, userId: order.ownerId, type: 'CREDIT', amount: ownerReceives, metadata: { note: 'Paiement vente' } },
@@ -203,12 +187,11 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Order introuvable');
     if (order.status === 'REFUNDED' || order.status === 'CONFIRMED') throw new BadRequestException('Impossible de rembourser');
 
-    // Attempt refund via provider (CinetPay)
+    // Attempt refund via provider (CinetPay) - La logique réelle est omise mais la variable est déclarée
     let refundedViaProvider = false;
-    // ... (rest of the CinetPay refund logic)
-    // NOTE: CinetPay refund logic kept as is but encapsulated in the final transaction logic below
+    // ... code d'appel à CinetPay ...
 
-    // 💡 TRANSACTION FIX: Ensure atomicity of status update, wallet update, and slot return
+    // Transaction pour garantir l'atomicité de la mise à jour
     await this.prisma.$transaction(async (tx) => {
         // 1. Update order status
         await tx.order.update({ where: { id: orderId }, data: { status: 'REFUNDED' } });
@@ -219,18 +202,16 @@ export class OrdersService {
             data: { availableSlots: { increment: 1 } } 
         });
 
-        // 3. Handle funds (assuming provider refund fails/is not possible, credit buyer wallet)
-        // If your business logic requires crediting the wallet even after a provider refund failure, keep this.
+        // 3. Handle funds: si le remboursement via le provider échoue, on crédite le wallet de l'acheteur.
         if (!refundedViaProvider) { 
             await tx.user.update({ 
                 where: { id: order.buyerId }, 
                 data: { wallet: { increment: order.amount } } 
             });
-            // Also log a transaction record here
         }
     });
 
-    // Notify buyer via WhatsApp (outside transaction)
+    // Notifier buyer via WhatsApp (omitted for brevity, assume it's external to transaction)
     // ... (logic to notify buyer)
 
     return { ok: true };
@@ -249,24 +230,7 @@ export class OrdersService {
 
   // stubbed initCinetPayPayment: adapte aux paramètres réels de CinetPay en prod
   private async initCinetPayPayment(opts: { orderId: string; amount: number; buyerPhone: string }) {
-    // ... (implementation remains the same)
-    const CINETPAY_API_KEY = process.env.CINETPAY_API_KEY;
-    const body = {
-      amount: opts.amount,
-      currency: 'XAF',
-      description: `Paiement order ${opts.orderId}`,
-      return_url: `${process.env.FRONTEND_URL}/payment/success?orderId=${opts.orderId}`,
-      cancel_url: `${process.env.FRONTEND_URL}/payment/cancel?orderId=${opts.orderId}`,
-      notify_url: `${process.env.BACKEND_URL}/webhooks/cinetpay`,
-      customer: {
-        msisdn: opts.buyerPhone,
-      },
-      metadata: {
-        orderId: opts.orderId,
-      },
-    };
-
-    // simulation pour le développement:
+    // La logique CinetPay est mockée ici pour le développement:
     return { paymentUrl: `${process.env.FRONTEND_URL}/mock-payment?orderId=${opts.orderId}`, paymentId: `mock-${opts.orderId}`, };
   }
   
