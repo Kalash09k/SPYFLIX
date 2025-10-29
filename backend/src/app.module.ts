@@ -8,7 +8,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { BullModule } from '@nestjs/bull';
 import { WhatsAppService } from './notifications/whatsapp.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Order } from './orders/entities/order.entities';
+import { Order } from './orders/entities/order.entity';
 import { UsersService } from './users/users.service';
 import { User } from './orders/entities/user.entity';
 import { UsersModule } from './users/users.module';

@@ -4,7 +4,7 @@ import { WhatsAppService } from '../notifications/whatsapp.service';
 import axios from 'axios';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Order } from '../orders/entities/order.entities';
+import { Order } from '../orders/entities/order.entity';
 
 @Controller('webhooks')
 export class CinetpayWebhookController {

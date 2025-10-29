@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { Order } from './entities/order.entities';
+import { Order } from './entities/order.entity';
 import { WhatsAppService } from '../notifications/whatsapp.service';
 import { LessThanOrEqual } from 'typeorm';
 import axios from 'axios';

@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import axios from 'axios';
 import crypto from 'crypto';
 import { WhatsAppService } from '../notifications/whatsapp.service';
-import { Order } from '../orders/entities/order.entities';
+import { Order } from '../orders/entities/order.entity';
 
 @Controller('webhooks')
 export class CinetpayWebhooksController {
@@ -83,6 +83,7 @@ export class CinetpayWebhooksController {
       order.status = 'pending';
       order.paymentReference = transactionId;
       order.expiresAt = new Date(Date.now() + 10 * 60 * 1000); // expire après 10 min
+      this.logger.log(JSON.stringify(order))
       await this.orderRepository.save(order);
 
       this.logger.log(`✅ Commande ${orderId} marquée comme PAYÉE.`);
@@ -92,19 +93,20 @@ export class CinetpayWebhooksController {
       const buyerName = metadata?.buyerName || 'Client';
       const sellerPhone = metadata?.sellerPhone || '237691111111';
       const serviceName = metadata?.serviceName || 'Abonnement Premium';
+      const amount = metadata?.amount || '2000';
 
       // Acheteur
       await this.whatsappService.sendTemplateMessage({
         to: buyerPhone,
-        templateName: 'paiement_confirme',
+        templateName: 'payment_confirmation',
         language: 'fr',
-        variables: [buyerName, serviceName, 'PAYÉ', orderId],
+        variables: [buyerName, serviceName, 'PAYÉ', orderId, amount, sellerPhone],
       });
 
       // Vendeur
       await this.whatsappService.sendTemplateMessage({
         to: order.sellerPhone,
-        templateName: 'vente_confirmee',
+        templateName: 'confirmation_de_vente',
         language: 'fr',
         variables: [serviceName, buyerName, orderId],
       });

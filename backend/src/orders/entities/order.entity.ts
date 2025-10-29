@@ -1,4 +1,5 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { User } from './user.entity';
 
 @Entity('orders')
 export class Order {
@@ -25,6 +26,12 @@ export class Order {
 
   @Column({ nullable: true })
   paymentReference: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   @Column({ 
     type: 'decimal',

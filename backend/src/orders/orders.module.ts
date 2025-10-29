@@ -7,7 +7,7 @@ import { PrismaModule } from "../../prisma/prisma.module";
 import { WhatsAppService } from '../notifications/whatsapp.service';
 import { OrdersMonitorService } from './orders-monitor.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Order } from './entities/order.entities';
+import { Order } from './entities/order.entity';
 import { OrdersController } from './orders.controller';
 import { User } from './entities/user.entity';
 

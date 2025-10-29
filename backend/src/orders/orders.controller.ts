@@ -3,7 +3,7 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { BadRequestException } from '@nestjs/common';
 import { NotFoundException } from '@nestjs/common';
-import { Order } from './entities/order.entities';
+import { Order } from './entities/order.entity';
 import { Repository } from 'typeorm';
 @Controller('orders')
 export class OrdersController {

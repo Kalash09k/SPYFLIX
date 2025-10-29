@@ -5,7 +5,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentsService } from '../payments/payments.service';
 import { WhatsAppService } from '../notifications/whatsapp.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Order } from '../orders/entities/order.entities';
+import { Order } from '../orders/entities/order.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Order]), OrdersModule, NotificationsModule],
