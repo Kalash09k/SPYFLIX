@@ -7,7 +7,8 @@ import { PayoutModule } from '../payments/payout.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]), PayoutModule  
+    TypeOrmModule.forFeature([User]), PayoutModule,
+    PayoutModule
   ],
   controllers: [UsersController],
   providers: [UsersService],

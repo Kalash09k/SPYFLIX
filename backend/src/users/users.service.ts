@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { User } from '../orders/entities/user.entity';
 import { BadRequestException } from '@nestjs/common';
 import { PayoutService } from '../payments/payout.service';
+import axios from 'axios';
 
 @Injectable()
 export class UsersService {
@@ -17,7 +18,7 @@ export class UsersService {
     const user = await this.userRepository.findOne({ where: { phone } });
 
     if (!user) {
-      throw new NotFoundException('Vendeur introuvable');
+      throw new NotFoundException(`Utilisateur avec numero ${phone} non trouvé`);
     }
     return { balance: user.wallet };
   }
@@ -40,9 +41,15 @@ export class UsersService {
     });
 
     // (Optionnel) Appeler CinetPay API pour transfert vers le compte Mobile Money du vendeur
-    // await axios.post('https://api-checkout.cinetpay.com/v2/payout', {...})
+    try {
+      const response = await axios.post('https://api-checkout.cinetpay.com/v2/payout', {
+        
+      });
+      return { message: 'Demande de retrait enregistrée', transactionId: payoutResult.transactionId, newBalance: user.wallet };
+    } catch (error: any) {
+      console.error('Payout failed', error);
+      throw error;
+    };
+  };
 
-    return { message: 'Demande de retrait enregistrée', transactionId: payoutResult.transactionId, newBalance: user.wallet };
-  }
-
-}
+};

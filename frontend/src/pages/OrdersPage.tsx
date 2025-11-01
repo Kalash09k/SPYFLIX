@@ -2,9 +2,16 @@ import { useEffect, useState } from 'react';
 import { confirmOrder } from '../services/api';
 
 export default function OrdersPage() {
-  const buyerPhone = '+237659212219';
+  const buyerPhone = localStorage.getItem('buyerPhone');
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+    // Rafraîchissement automatique toutes les 5 secondes
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fonction pour charger les commandes
   const fetchOrders = async () => {
@@ -18,13 +25,6 @@ export default function OrdersPage() {
       setLoading(false);
     }
   };
-
-  // Rafraîchissement automatique toutes les 5 secondes
-  useEffect(() => {
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleConfirm = async (orderId: string) => {
     if (!window.confirm('Confirmer la réception des identifiants ?')) return;
@@ -43,10 +43,7 @@ export default function OrdersPage() {
         <p className="text-center text-gray-500">Aucune commande pour le moment.</p>) : (
         <ul className="space-y-4">
           {orders.map((order) => (
-            <li
-              key={order.id}
-              className="p-4 border rounded-lg shadow-sm flex justify-between items-center"
-            >
+            <li key={order.id} className="p-4 border rounded-lg shadow-sm flex justify-between items-center">
               <div>
                 <p className="font-semibold">{order.serviceName}</p>
                 <p className="text-sm text-gray-500">Vendeur: {order.sellerPhone}</p>

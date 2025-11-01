@@ -1,6 +1,8 @@
 import { Controller, Get, Param, Body, Post } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { BadRequestException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
+import { User } from '../orders/entities/user.entity';
 
 @Controller('users')
 export class UsersController {
@@ -19,15 +21,14 @@ export class UsersController {
 
         if (!wallet) {
             // Consider using NotFoundException if the resource is missing
-            throw new BadRequestException(`Wallet not found for phone: ${phone}`); 
+            throw new BadRequestException(`Wallet not found for phone: ${phone}`);
         }
 
-        return wallet;
+        return { balance: this.usersService.getWallet(phone) };
     }
 
     @Post('withdraw')
     async requestWithdraw(@Body() body: { phone: string; amount: number }) {
-        // This will still show an error until you perform FIX 3 below!
-        return this.usersService.requestWithdraw(body.phone, body.amount); 
+        return this.usersService.requestWithdraw(body.phone, body.amount);
     }
 }

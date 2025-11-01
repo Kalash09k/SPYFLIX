@@ -8,6 +8,7 @@ export class AuthService {
   constructor(private prisma: PrismaService) {}
 
   async register(dto: any) {
+    
     const exists = await this.prisma.user.findUnique({ where: { email: dto.email }});
     if (exists) throw new ConflictException('Un compte existe deja avec cet Email');
 

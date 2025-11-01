@@ -1,8 +1,16 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import axios from 'axios';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { NotFoundException } from '@nestjs/common';
+import { Payout } from './entities/payout.entity';
 
 @Injectable()
 export class PayoutService {
+  constructor(
+    @InjectRepository(Payout)
+    private readonly payoutRepository: Repository<Payout>,
+  ) {}
   private readonly logger = new Logger(PayoutService.name);
 
   async sendPayout({
@@ -53,5 +61,21 @@ export class PayoutService {
       );
       throw new BadRequestException('Erreur API CinetPay (payout)');
     }
+  }
+
+  async updateStatus(transactionId: string, newStatus: string) {
+    const payout = await this.payoutRepository.findOne({ where: { transactionId } });
+
+    if (!payout) {
+      console.error(`Payout avec transactionId ${transactionId} non trouvé.`);
+      throw new NotFoundException(`Payout non trouvé.`);
+    }
+    payout.status = newStatus;
+
+    await this.payoutRepository.save(payout);
+
+    console.log(`Statut du Payout ${transactionId} mis à jour à : ${newStatus}`);
+
+    return payout;
   }
 }

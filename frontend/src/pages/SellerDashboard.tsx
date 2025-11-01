@@ -49,8 +49,8 @@ export default function SellerDashboard() {
   if (loading) return <div className="p-4 text-center">Chargement...</div>;
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6 text-center">Tableau de bord Proprietaire</h1>
+    <div className="p-6 mx-autoa">
+      <h1 className="text-4xl font-bold mb-6 text-center">Tableau de bord Proprietaire</h1>
 
       <div className="flex justify-between items-center mb-6">
         <div className="text-lg font-semibold">
@@ -63,14 +63,10 @@ export default function SellerDashboard() {
             placeholder="Montant à retirer"
             value={withdrawAmount}
             onChange={(e) => setWithdrawAmount(e.target.value)}
-            className="border p-2 rounded w-40"
-          />
+            className="border p-2 rounded w-40"/>
           <button
             onClick={handleWithdraw}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Retirer
-          </button>
+            className="bg-blue-600 text-black px-4 py-2 rounded hover:bg-blue-700">Retirer</button>
         </div>
       </div>
 

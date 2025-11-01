@@ -16,6 +16,24 @@ export async function createOrder(orderData: any) {
   return res.json();
 }
 
+export async function getOrdersByBuyer() {
+  // 🔹 Récupérer le numéro de téléphone depuis le localStorage
+  const buyerPhone = localStorage.getItem('buyerPhone');
+
+  if (!buyerPhone) {
+    throw new Error('Aucun numéro de téléphone trouvé dans le localStorage.');
+  }
+
+  const res = await fetch(`${BASE_URL}/orders/buyer/${buyerPhone}`);
+
+  if (!res.ok) {
+    throw new Error('Erreur lors de la récupération des commandes.');
+  }
+
+  return res.json();
+}
+
+
 export async function confirmOrder(orderId: string) {
   const res = await fetch(`${BASE_URL}/orders/confirm`, {
     method: 'POST',
