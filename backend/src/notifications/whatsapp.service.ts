@@ -7,7 +7,7 @@ export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
 
   // Méthode unifiée pour envoyer soit un TEXTE simple, soit un TEMPLATE
-  async sendMessage(opts: {
+  async sendTextMessage(opts: {
     to: string; // numéro du client
     templateName?: string; // ex: payment_confirmation (pour les templates)
     language?: string; // ex: fr (pour les templates)
@@ -73,20 +73,20 @@ export class WhatsAppService {
   async notifyPaymentReceived(phone: string, serviceName: string, amount: number) {
     const message = `✅ Bonjour 👋 ! Votre paiement de ${amount} XAF pour ${serviceName} a bien été reçu. 
 Le vendeur vous contactera sous peu pour vous envoyer vos identifiants 🔐.`;
-    await this.sendMessage({ to: phone, message });
+    await this.sendTextMessage({ to: phone, message });
   }
 
   // NOUVELLE MÉTHODE : Notification de commande confirmée
   async notifyOrderConfirmed(phone: string, serviceName: string) {
     const message = `🎉 Bonne nouvelle ! Votre accès à ${serviceName} est confirmé. 
 Merci d’utiliser notre plateforme 💪.`;
-    await this.sendMessage({ to: phone, message });
+    await this.sendTextMessage({ to: phone, message });
   }
 
   // NOUVELLE MÉTHODE : Notification de remboursement
   async notifyRefunded(phone: string, serviceName: string, amount: number) {
     const message = `⏳ Votre commande ${serviceName} a expiré. Vous avez été automatiquement remboursé de ${amount} XAF. 
 Vous pouvez choisir un autre vendeur depuis la plateforme.`;
-    await this.sendMessage({ to: phone, message });
+    await this.sendTextMessage({ to: phone, message });
   }
 }

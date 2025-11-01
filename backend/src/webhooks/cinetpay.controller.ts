@@ -96,7 +96,7 @@ export class CinetpayWebhooksController {
       const amount = metadata?.amount || '2000';
 
       // Acheteur
-      await this.whatsappService.sendMessage({
+      await this.whatsappService.sendTextMessage({
         to: buyerPhone,
         templateName: 'payment_confirmation',
         language: 'fr',
@@ -104,7 +104,7 @@ export class CinetpayWebhooksController {
       });
 
       // Vendeur
-      await this.whatsappService.sendMessage({
+      await this.whatsappService.sendTextMessage({
         to: order.sellerPhone,
         templateName: 'confirmation_de_vente',
         language: 'fr',

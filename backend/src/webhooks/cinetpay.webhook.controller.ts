@@ -5,12 +5,15 @@ import axios from 'axios';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from '../orders/entities/order.entity';
+import { PayoutService } from '../payments/payout.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Controller('webhooks')
 export class CinetpayWebhookController {
 
     constructor(
         private readonly whatsappService: WhatsAppService,
+        private readonly notificationsService: NotificationsService,
         @InjectRepository(Order)
         private readonly orderRepository: Repository<Order>,
     ) { }
@@ -68,10 +71,13 @@ export class CinetpayWebhookController {
             const status = verifyResponse.data?.data?.status;
             this.logger.log(`🔍 Statut vérifié: ${status}`);
 
-            if (status === 'ACCEPTED') {
-                this.logger.log(`✅ Paiement confirmé pour transaction_id=${transaction_id}`);
-                return res.status(200).json({ message: 'Paiement confirmé' });
-            } else {
+            if (body.transaction_status === 'ACCEPTED') {
+                const order = await this.orderRepository.findOne({ where: { id: body.metadata.orderId } });
+                if (order) {
+                    await this.notificationsService.sendPaymentReceivedNotification(order);
+                }
+            }
+            else {
                 this.logger.warn(`⚠️ Paiement non accepté pour transaction_id=${transaction_id}`);
                 return res.status(400).json({ message: 'Paiement non accepté' });
             }

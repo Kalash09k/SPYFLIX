@@ -10,9 +10,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Order } from './entities/order.entity';
 import { OrdersController } from './orders.controller';
 import { User } from './entities/user.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsModule } from '../notifications/notifications.module';
+
 
 @Module({
   imports: [
+    NotificationsModule,
     TypeOrmModule.forFeature([Order, User]),
     BullModule.registerQueue({
       name: 'orders',
@@ -20,7 +24,7 @@ import { User } from './entities/user.entity';
     PrismaModule,
   ],
   controllers: [OrdersController],
-  providers: [OrdersProcessor, OrdersService, PrismaService, OrdersMonitorService, WhatsAppService],
+  providers: [OrdersProcessor, OrdersService, PrismaService, OrdersMonitorService, WhatsAppService, NotificationsService],
   exports: [OrdersService],
 })
 export class OrdersModule {}

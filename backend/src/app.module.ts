@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
@@ -14,8 +14,9 @@ import { User } from './orders/entities/user.entity';
 import { UsersModule } from './users/users.module';
 import { PayoutModule } from './payments/payout.module';
 import { TestController } from './test/test.controller';
+import { NotificationsService } from './notifications/notifications.service';
 
-
+@Global()
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -50,7 +51,7 @@ import { TestController } from './test/test.controller';
       name: 'orders',
     }),],
     controllers: [TestController],
-    providers: [WhatsAppService, UsersService],
-    exports: [WhatsAppService],
+    providers: [WhatsAppService, UsersService, NotificationsService],
+    exports: [WhatsAppService, NotificationsService],
 })
 export class AppModule { }
