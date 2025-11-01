@@ -30,7 +30,7 @@ if (body.status === 'SUCCESS') {
 
     if (body.status === 'SUCCESS') {
       const message = `✅ Bonjour ! Votre retrait de ${body.amount} XAF a été confirmé et envoyé sur votre compte Mobile Money. Merci d’utiliser notre plateforme 🔥`;
-      await this.whatsappService.sendTemplateMessage({
+      await this.whatsappService.sendMessage({
         to: phone,
         templateName: 'payout_confirmation',
         language: 'fr',

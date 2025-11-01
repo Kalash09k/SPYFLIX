@@ -96,7 +96,7 @@ export class CinetpayWebhooksController {
       const amount = metadata?.amount || '2000';
 
       // Acheteur
-      await this.whatsappService.sendTemplateMessage({
+      await this.whatsappService.sendMessage({
         to: buyerPhone,
         templateName: 'payment_confirmation',
         language: 'fr',
@@ -104,12 +104,27 @@ export class CinetpayWebhooksController {
       });
 
       // Vendeur
-      await this.whatsappService.sendTemplateMessage({
+      await this.whatsappService.sendMessage({
         to: order.sellerPhone,
         templateName: 'confirmation_de_vente',
         language: 'fr',
         variables: [serviceName, buyerName, orderId],
       });
+
+      if (body.transaction_status === 'ACCEPTED' || body.code === '00') {
+  const orderId = body.metadata?.orderId;
+  const order = await this.orderRepository.findOne({ where: { id: orderId } });
+  
+  if (order) {
+    // notifier l’acheteur
+    await this.whatsappService.notifyPaymentReceived(
+      order.buyerPhone,
+      order.serviceName,
+      body.amount
+    );
+  }
+}
+
 
       this.logger.log(`📤 Notifications envoyées pour la commande ${orderId}`);
 

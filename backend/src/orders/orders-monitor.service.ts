@@ -47,7 +47,7 @@ export class OrdersMonitorService {
       await repo.save(order);
 
       // 3️⃣ Notifier l’acheteur via WhatsApp
-      await this.whatsappService.sendTemplateMessage({
+      await this.whatsappService.sendMessage({
         to: order.buyerPhone,
         templateName: 'refund_notification',
         language: 'fr',
